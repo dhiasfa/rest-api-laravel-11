@@ -37,8 +37,8 @@ Route::prefix('v2')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::resource('article', ArticleController::class);
         Route::get('read-article/{id}', [App\Http\Controllers\API\v2\ArticleController::class, 'show']);
-        Route::put('update-article/{id}', [App\Http\Controllers\API\v2\ArticleController::class, 'update']);
         Route::delete('delete-article/{id}', [App\Http\Controllers\API\v2\ArticleController::class, 'delete']);
     });
+    Route::put('update-article/{id}', [App\Http\Controllers\API\v2\ArticleController::class, 'update']);
     Route::post('store-articles', [App\Http\Controllers\API\v2\ArticleController::class, 'store']);
 });

@@ -160,63 +160,79 @@ class ArticleController extends Controller
         }
     }
 
-    //untuk update data
     public function update(Request $request, $id)
     {
+        // Mendapatkan token dari request
         $token = $request->bearerToken();
+
+        // Periksa apakah token ada
         if (!$token) {
             return response()->json([
                 'message' => "Can't update article. Token Not Exist, please login first",
                 'status' => Response::HTTP_UNAUTHORIZED,
             ], Response::HTTP_UNAUTHORIZED);
         }
+
+        // Verifikasi token dan mendapatkan user terkait
+        $user = Auth::guard('sanctum')->user(); // Ganti 'sanctum' dengan guard yang sesuai jika menggunakan selain Sanctum
+
+        // Jika token tidak valid atau user tidak ditemukan
+        if (!$user) {
+            return response()->json([
+                'message' => 'Unauthorized, invalid token or token expired',
+                'status' => Response::HTTP_UNAUTHORIZED,
+            ], Response::HTTP_UNAUTHORIZED);
+        }
+
+        // Dapatkan artikel berdasarkan ID
         $article = Article::find($id);
 
+        // Jika artikel tidak ditemukan
         if (!$article) {
             return response()->json([
                 'status' => Response::HTTP_NOT_FOUND,
-                'message' => 'Article Not Found'
+                'message' => 'Article Not Found',
             ], Response::HTTP_NOT_FOUND);
-        } else {
-            //validation untuk form yang dikirim
-            $validator = Validator::make($request->all(), [
-                'title' => 'required',
-                'content' => 'required',
-                'publish_date' => 'required'
+        }
+
+        // Validasi form yang dikirim
+        $validator = Validator::make($request->all(), [
+            'title' => 'required|string|max:255',
+            'content' => 'required|string',
+            'publish_date' => 'required',
+        ]);
+
+        // Ketika validasi gagal
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => Response::HTTP_BAD_REQUEST,
+                'errors' => $validator->errors(),
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        try {
+            // Update artikel
+            $article->update([
+                'title' => $request->input('title'),
+                'content' => $request->input('content'),
+                'publish_date' => Carbon::parse($request->input('publish_date'))->toDateString(),
             ]);
 
-            //ketika validation gagal maka akan memunculkan error
-            if ($validator->fails()) {
-                return response()->json($validator->errors());
-            }
+            return response()->json([
+                'status' => Response::HTTP_OK,
+                'message' => 'Article Updated Successfully',
+            ], Response::HTTP_OK);
+        } catch (Exception $e) {
+            // Jika ada error pada proses update
+            Log::error("Error updating article: " . $e->getMessage());
 
-            try {
-                $article->update(
-                    [
-                        'title' => $request->input('title'),
-                        'content' => $request->input('content'),
-                        'publish_date' => Carbon::create($request->input('publish_date'))->toDateString(),
-                    ]
-                );
-                return response()->json([
-                    'status' => Response::HTTP_OK,
-                    'message' => 'Article Updated'
-                ], Response::HTTP_OK);
-            } catch (Exception $e) {
-
-                //jika error saat insert maka akan menampilkan pesan error
-                Log::error("Error Update Data " . $e->getMessage());
-
-                return response()->json(
-                    [
-                        'message' => 'failed update db',
-                        'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
-                    ],
-                    Response::HTTP_INTERNAL_SERVER_ERROR
-                );
-            }
+            return response()->json([
+                'message' => 'Failed to update article, please try again later.',
+                'status' => Response::HTTP_INTERNAL_SERVER_ERROR,
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
 
     public function delete(Request $request, $id)
     {
